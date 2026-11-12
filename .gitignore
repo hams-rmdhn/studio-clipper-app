@@ -1,0 +1,14 @@
+node_modules/
+src-tauri/target/
+dist/
+*.dmg
+.DS_Store
+logs/*.log
+# StaticPHP build artifacts (regenerable via tools/build-php.sh)
+tools/source/
+tools/buildroot/
+tools/downloads/
+tools/log/
+tools/spc
+src-tauri/gen/
+tools/pkgroot/

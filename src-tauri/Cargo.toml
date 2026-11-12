@@ -1,0 +1,19 @@
+[package]
+name = "studio-clipper"
+version = "0.1.0"
+description = "Studio Clipper — desktop wrapper for the Studio Inspirasi pipeline"
+edition = "2021"
+rust-version = "1.77.2"
+license = "MIT"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "s"
+strip = true

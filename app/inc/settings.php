@@ -1,0 +1,454 @@
+<?php
+/**
+ * Settings — admin page + option accessors.
+ *
+ * Secrets (OpenAI key, Studio Inspirasi token) are stored AES-256-CTR encrypted,
+ * keyed off the site salts — the DB alone never carries plaintext.
+ * Studio Inspirasi credentials auto-resolve from the window's automation.json
+ * when mode=auto.
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/* ---------------------------------------------------------------------
+ * Secret encryption helpers
+ * ------------------------------------------------------------------- */
+
+function cc_secret_key() {
+	return hash( 'sha256', AUTH_KEY . '|' . SECURE_AUTH_KEY, true );
+}
+
+function cc_encrypt( $plain ) {
+	$plain = (string) $plain;
+	if ( '' === $plain ) {
+		return '';
+	}
+	if ( ! function_exists( 'openssl_encrypt' ) ) {
+		return 'plain::' . $plain; // degraded — OpenSSL missing
+	}
+	$iv = openssl_random_pseudo_bytes( 16 );
+	$ct = openssl_encrypt( $plain, 'aes-256-ctr', cc_secret_key(), OPENSSL_RAW_DATA, $iv );
+	return 'enc::' . base64_encode( $iv . $ct );
+}
+
+function cc_decrypt( $blob ) {
+	$blob = (string) $blob;
+	if ( '' === $blob ) {
+		return '';
+	}
+	if ( 0 === strpos( $blob, 'plain::' ) ) {
+		return substr( $blob, 7 );
+	}
+	if ( 0 !== strpos( $blob, 'enc::' ) ) {
+		return $blob; // legacy/plaintext value
+	}
+	$raw = base64_decode( substr( $blob, 5 ), true );
+	if ( false === $raw || strlen( $raw ) < 17 ) {
+		return '';
+	}
+	$pt = openssl_decrypt( substr( $raw, 16 ), 'aes-256-ctr', cc_secret_key(), OPENSSL_RAW_DATA, substr( $raw, 0, 16 ) );
+	return false === $pt ? '' : $pt;
+}
+
+/* ---------------------------------------------------------------------
+ * Option accessors
+ * ------------------------------------------------------------------- */
+
+function cc_openai_key() {
+	return cc_decrypt( get_option( 'cc_openai_key', '' ) );
+}
+
+function cc_openai_model() {
+	$m = trim( (string) get_option( 'cc_openai_model', '' ) );
+	return $m ? $m : 'gpt-4o-mini';
+}
+
+function cc_openai_configured() {
+	return function_exists( 'cc_ai_configured' ) ? cc_ai_configured() : '' !== cc_openai_key();
+}
+
+function cc_concat_mode() {
+	return 'manual' === get_option( 'cc_concat_mode' ) ? 'manual' : 'auto';
+}
+
+function cc_concat_addr_opt() {
+	$a = trim( (string) get_option( 'cc_concat_addr', '' ) );
+	return $a ? $a : '127.0.0.1:7420';
+}
+
+function cc_concat_token_opt() {
+	return cc_decrypt( get_option( 'cc_concat_token', '' ) );
+}
+
+function cc_workspace() {
+	$w = trim( (string) get_option( 'cc_workspace', '' ) );
+	if ( '' === $w ) {
+		$home = (string) getenv( 'USERPROFILE' ) ?: (string) getenv( 'HOME' );
+		$w    = trailingslashit( wp_normalize_path( $home ) ) . 'concat-chat-projects';
+	}
+	return trailingslashit( wp_normalize_path( $w ) );
+}
+
+/**
+ * Bootstrap struktur workspace — idempotent, sekali per request.
+ * Dipanggil saat tema aktif (after_switch_theme) dan lazy dari helper cc_ws_*.
+ */
+function cc_ws_ensure() {
+	static $done = false;
+	if ( $done ) {
+		return;
+	}
+	$done = true;
+	foreach ( array( 'Assets', 'Projects', 'Exported', '_tmp' ) as $d ) {
+		wp_mkdir_p( cc_workspace() . $d );
+	}
+}
+
+function cc_ws_assets() {
+	cc_ws_ensure();
+	return cc_workspace() . 'Assets/';
+}
+
+function cc_ws_projects() {
+	cc_ws_ensure();
+	return cc_workspace() . 'Projects/';
+}
+
+function cc_ws_exported() {
+	cc_ws_ensure();
+	return cc_workspace() . 'Exported/';
+}
+
+function cc_ws_tmp() {
+	cc_ws_ensure();
+	return cc_workspace() . '_tmp/';
+}
+
+function cc_bin_dir() {
+	return get_template_directory() . '/bin/';
+}
+
+/** Whitelisted destination folders for copy_result (';'-separated). */
+function cc_copy_roots() {
+	$raw = (string) get_option( 'cc_copy_roots', '' );
+	$out = array( untrailingslashit( cc_ws_exported() ) ); // Exported selalu diizinkan.
+	foreach ( explode( ';', $raw ) as $p ) {
+		$p = trim( $p );
+		if ( '' !== $p ) {
+			$out[] = untrailingslashit( wp_normalize_path( $p ) );
+		}
+	}
+	return array_values( array_unique( $out ) );
+}
+
+/* ---------------------------------------------------------------------
+ * automation.json — written by the Studio Inspirasi window while
+ * Settings › Automation › Scripts and apps is on.
+ * ------------------------------------------------------------------- */
+
+/**
+ * Candidate locations for automation.json — the web-server PHP may not
+ * inherit APPDATA/USERPROFILE the way a shell does, so we try every
+ * env source that could hold it, plus the Unix XDG path.
+ */
+function cc_automation_paths() {
+	$base  = 'app.concat.editor/automation.json';
+	$paths = array();
+	// Studio Inspirasi / Clovercut (forks) di macOS menulis ke dir Application
+	// Support miliknya sendiri — yang aktif didahulukan.
+	if ( getenv( 'HOME' ) ) {
+		foreach ( array( 'io.github.hams-rmdhn.studio-inspirasi', 'io.github.tulcoturo.clovercut' ) as $cfg ) {
+			$paths[] = trailingslashit( getenv( 'HOME' ) ) . 'Library/Application Support/' . $cfg . '/automation.json';
+		}
+	}
+	foreach ( array( getenv( 'APPDATA' ), $_SERVER['APPDATA'] ?? '' ) as $app ) {
+		if ( $app ) {
+			$paths[] = trailingslashit( $app ) . $base;
+		}
+	}
+	foreach ( array( getenv( 'USERPROFILE' ), $_SERVER['USERPROFILE'] ?? '' ) as $home ) {
+		if ( $home ) {
+			$paths[] = trailingslashit( $home ) . 'AppData/Roaming/' . $base;
+		}
+	}
+	$drive = getenv( 'HOMEDRIVE' ) . getenv( 'HOMEPATH' );
+	if ( strlen( $drive ) > 2 ) {
+		$paths[] = trailingslashit( $drive ) . 'AppData/Roaming/' . $base;
+	}
+	if ( getenv( 'HOME' ) ) {
+		$paths[] = trailingslashit( getenv( 'HOME' ) ) . '.config/' . $base;
+	}
+	return array_unique( array_filter( $paths ) );
+}
+
+/** First existing candidate, else the first candidate (for display). */
+function cc_automation_path() {
+	$paths = cc_automation_paths();
+	foreach ( $paths as $p ) {
+		if ( file_exists( $p ) ) {
+			return $p;
+		}
+	}
+	return $paths ? $paths[0] : '';
+}
+
+/** Returns array{address,token} or WP_Error. */
+function cc_automation_read() {
+	$path = cc_automation_path();
+	if ( ! $path || ! file_exists( $path ) ) {
+		return new WP_Error(
+			'cc_auto_off',
+			'automation.json tidak ditemukan — buka Studio Inspirasi (Studio Inspirasi) dan aktifkan Settings › Automation › Scripts and apps. Dicari di: '
+				. implode( ', ', cc_automation_paths() )
+		);
+	}
+	$data = json_decode( (string) file_get_contents( $path ), true );
+	if ( ! is_array( $data ) || empty( $data['address'] ) || empty( $data['token'] ) ) {
+		return new WP_Error( 'cc_auto_bad', 'automation.json terbaca tapi tidak lengkap (address/token hilang).' );
+	}
+	return array( 'address' => $data['address'], 'token' => $data['token'], 'source' => 'automation.json' );
+}
+
+/** Resolve {address,token} per configured mode. WP_Error when not available. */
+function cc_concat_credentials() {
+	if ( 'auto' === cc_concat_mode() ) {
+		return cc_automation_read();
+	}
+	$addr  = cc_concat_addr_opt();
+	$token = cc_concat_token_opt();
+	if ( strlen( $token ) < 20 ) {
+		return new WP_Error( 'cc_token', 'Token Studio Inspirasi belum diisi / kurang dari 20 karakter.' );
+	}
+	return array( 'address' => $addr, 'token' => $token, 'source' => 'manual' );
+}
+
+/* ---------------------------------------------------------------------
+ * Admin page
+ * ------------------------------------------------------------------- */
+
+add_action(
+	'admin_menu',
+	function () {
+		add_menu_page(
+			'Studio Inspirasi',
+			'Studio Inspirasi',
+			'manage_options',
+			'cc-settings',
+			'cc_settings_page',
+			'dashicons-format-video',
+			30
+		);
+	}
+);
+
+add_action( 'admin_post_cc_settings_save', 'cc_handle_settings_save' );
+add_action( 'admin_post_cc_test_openai', 'cc_handle_test_openai' );
+add_action( 'admin_post_cc_test_concat', 'cc_handle_test_concat' );
+
+/** Apply a settings payload — shared by the wp-admin form and the REST endpoint. */
+function cc_settings_apply( $in ) {
+	update_option( 'cc_openai_model', sanitize_text_field( $in['openai_model'] ?? '' ), false );
+	update_option( 'cc_concat_mode', 'manual' === ( $in['concat_mode'] ?? '' ) ? 'manual' : 'auto', false );
+	update_option( 'cc_concat_addr', sanitize_text_field( $in['concat_addr'] ?? '' ), false );
+	update_option( 'cc_workspace', sanitize_text_field( $in['workspace'] ?? '' ), false );
+	update_option( 'cc_copy_roots', sanitize_textarea_field( $in['copy_roots'] ?? '' ), false );
+	update_option( 'cc_broll_dir', sanitize_text_field( $in['broll_dir'] ?? '' ), false );
+	update_option( 'cc_sfx_dir', sanitize_text_field( $in['sfx_dir'] ?? '' ), false );
+
+	// Agen AI — provider + model/key/baseurl per provider.
+	if ( isset( $in['ai_provider'] ) ) {
+		$p = sanitize_key( (string) $in['ai_provider'] );
+		if ( function_exists( 'cc_ai_providers' ) && array_key_exists( $p, cc_ai_providers() ) ) {
+			update_option( 'cc_ai_provider', $p, false );
+		}
+	}
+	$p = function_exists( 'cc_ai_provider' ) ? cc_ai_provider() : 'openai';
+	if ( 'openai' === $p ) {
+		if ( isset( $in['ai_model'] ) ) {
+			update_option( 'cc_openai_model', sanitize_text_field( $in['ai_model'] ), false );
+		}
+	} elseif ( isset( $in['ai_model'] ) ) {
+		update_option( 'cc_ai_model_' . $p, sanitize_text_field( $in['ai_model'] ), false );
+	}
+	if ( 'custom' === $p ) {
+		update_option( 'cc_ai_custom_baseurl', sanitize_text_field( $in['ai_baseurl'] ?? '' ), false );
+	}
+	update_option( 'cc_ai_baseurl', sanitize_text_field( $in['ai_baseurl'] ?? '' ), false );
+
+	// Secret fields: empty input = keep the stored value.
+	$key_opt = 'openai' === $p ? 'cc_openai_key' : 'cc_ai_key_' . $p;
+	foreach ( array( 'openai_key' => 'cc_openai_key', 'concat_token' => 'cc_concat_token', 'ai_key' => $key_opt ) as $field => $option ) {
+		$val = trim( (string) ( $in[ $field ] ?? '' ) );
+		if ( '' !== $val ) {
+			update_option( $option, cc_encrypt( $val ), false );
+		}
+	}
+}
+
+function cc_handle_settings_save() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Access denied.' );
+	}
+	check_admin_referer( 'cc_settings_save' );
+
+	$in = array();
+	foreach ( array( 'openai_model', 'concat_mode', 'concat_addr', 'workspace', 'copy_roots', 'broll_dir', 'sfx_dir', 'openai_key', 'concat_token' ) as $f ) {
+		$in[ $f ] = wp_unslash( $_POST[ $f ] ?? '' );
+	}
+	cc_settings_apply( $in );
+
+	wp_safe_redirect( add_query_arg( 'cc_saved', '1', admin_url( 'admin.php?page=cc-settings' ) ) );
+	exit;
+}
+
+function cc_handle_test_openai() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Access denied.' );
+	}
+	check_admin_referer( 'cc_test_openai' );
+	$res   = CC_OpenAI::ping();
+	$state = is_wp_error( $res ) ? 'err:' . $res->get_error_message() : 'ok:' . $res;
+	set_transient( 'cc_test_openai', $state, 120 );
+	wp_safe_redirect( admin_url( 'admin.php?page=cc-settings#openai' ) );
+	exit;
+}
+
+function cc_handle_test_concat() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Access denied.' );
+	}
+	check_admin_referer( 'cc_test_concat' );
+	$res   = CC_Concat::probe();
+	$state = is_wp_error( $res )
+		? 'err:' . $res->get_error_message()
+		: 'ok:API ' . ( $res['apiVersion'] ?? '?' ) . ' · Studio Inspirasi ' . ( $res['concat'] ?? '?' ) . ' · caps: ' . implode( ',', (array) ( $res['capabilities'] ?? array() ) );
+	set_transient( 'cc_test_concat', $state, 120 );
+	wp_safe_redirect( admin_url( 'admin.php?page=cc-settings#concat' ) );
+	exit;
+}
+
+function cc_test_notice( $key ) {
+	$state = get_transient( $key );
+	if ( ! $state ) {
+		return;
+	}
+	delete_transient( $key );
+	$ok = 0 === strpos( $state, 'ok:' );
+	printf(
+		'<div class="notice %s inline"><p><strong>%s</strong> %s</p></div>',
+		$ok ? 'notice-success' : 'notice-error',
+		$ok ? '✓' : '✗',
+		esc_html( substr( $state, 3 ) )
+	);
+}
+
+function cc_settings_page() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( 'Access denied.' );
+	}
+	$auto = cc_automation_read();
+	?>
+	<div class="wrap">
+		<h1>Studio Inspirasi — Settings</h1>
+		<?php if ( ! empty( $_GET['cc_saved'] ) ) : ?>
+			<div class="notice notice-success inline"><p>Pengaturan tersimpan.</p></div>
+		<?php endif; ?>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php wp_nonce_field( 'cc_settings_save' ); ?>
+			<input type="hidden" name="action" value="cc_settings_save">
+
+			<h2 id="openai">OpenAI</h2>
+			<?php cc_test_notice( 'cc_test_openai' ); ?>
+			<table class="form-table">
+				<tr>
+					<th>API Key</th>
+					<td><input type="password" name="openai_key" value="" class="regular-text" placeholder="<?php echo cc_openai_configured() ? '•••••••• (tersimpan — isi untuk mengganti)' : 'sk-…'; ?>" autocomplete="new-password">
+						<p class="description">Disimpan terenkripsi. Kosongkan untuk mempertahankan nilai lama.</p></td>
+				</tr>
+				<tr>
+					<th>Model</th>
+					<td><input type="text" name="openai_model" value="<?php echo esc_attr( get_option( 'cc_openai_model', 'gpt-4o-mini' ) ); ?>" class="regular-text">
+						<p class="description">Model untuk fitur AI pipeline (EDL plan, momen, vision) — <code>gpt-4o-mini</code> disarankan.</p></td>
+				</tr>
+			</table>
+
+			<h2 id="concat">Studio Inspirasi (video editor)</h2>
+			<?php cc_test_notice( 'cc_test_concat' ); ?>
+			<table class="form-table">
+				<tr>
+					<th>Mode koneksi</th>
+					<td>
+						<select name="concat_mode">
+							<option value="auto" <?php selected( cc_concat_mode(), 'auto' ); ?>>Auto — baca automation.json dari window Studio Inspirasi</option>
+							<option value="manual" <?php selected( cc_concat_mode(), 'manual' ); ?>>Manual — pakai address + token di bawah</option>
+						</select>
+						<p class="description">
+							automation.json: <code><?php echo esc_html( cc_automation_path() ); ?></code><br>
+							<?php if ( is_wp_error( $auto ) ) : ?>
+								<span style="color:#dba617">&#9679;</span> <?php echo esc_html( $auto->get_error_message() ); ?>
+							<?php else : ?>
+								<span style="color:#00a32a">&#9679;</span> Terdeteksi — address <code><?php echo esc_html( $auto['address'] ); ?></code>
+							<?php endif; ?>
+						</p>
+					</td>
+				</tr>
+				<tr>
+					<th>Address (manual)</th>
+					<td><input type="text" name="concat_addr" value="<?php echo esc_attr( get_option( 'cc_concat_addr', '127.0.0.1:7420' ) ); ?>" class="regular-text"></td>
+				</tr>
+				<tr>
+					<th>Token (manual)</th>
+					<td><input type="password" name="concat_token" value="" class="regular-text" placeholder="<?php echo cc_concat_token_opt() ? '•••••••• (tersimpan)' : 'min. 20 karakter — dari Settings › Automation di Studio Inspirasi'; ?>" autocomplete="new-password"></td>
+				</tr>
+			</table>
+
+			<h2>Folder kerja</h2>
+			<table class="form-table">
+				<tr>
+					<th>Workspace</th>
+					<td><input type="text" name="workspace" value="<?php echo esc_attr( get_option( 'cc_workspace', cc_workspace() ) ); ?>" class="regular-text code">
+						<p class="description">Proyek & export sementara Studio Inspirasi. Window Automation hanya boleh menulis di bawah home folder — simpan workspace di sana.</p></td>
+				</tr>
+				<tr>
+					<th>Folder tujuan diizinkan</th>
+					<td><textarea name="copy_roots" rows="3" class="large-text code" placeholder="D:\kegiatan;D:\kegiatan\dokumentasi"><?php echo esc_textarea( get_option( 'cc_copy_roots', '' ) ); ?></textarea>
+						<p class="description">Daftar folder (pisahkan dengan <code>;</code>) yang boleh menjadi tujuan penyalinan hasil export. Path di luar daftar ini ditolak.</p></td>
+				</tr>
+				<tr>
+					<th>Folder B-Roll default</th>
+					<td><input type="text" name="broll_dir" value="<?php echo esc_attr( get_option( 'cc_broll_dir', '' ) ); ?>" class="regular-text code" placeholder="/path/ke/Assets/broll">
+						<p class="description">Isian awal folder koleksi video B-Roll di form produksi.</p></td>
+				</tr>
+				<tr>
+					<th>Folder SFX default</th>
+					<td><input type="text" name="sfx_dir" value="<?php echo esc_attr( get_option( 'cc_sfx_dir', '' ) ); ?>" class="regular-text code" placeholder="/path/ke/Assets/sfx">
+						<p class="description">Dipakai bila field folder SFX dibiarkan kosong, termasuk saat "Gunakan Sound Effect" aktif di jenis produksi klip.</p></td>
+				</tr>
+			</table>
+
+			<?php submit_button(); ?>
+		</form>
+
+		<table class="form-table">
+			<tr>
+				<th></th>
+				<td>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block;margin-right:8px">
+						<?php wp_nonce_field( 'cc_test_openai' ); ?>
+						<input type="hidden" name="action" value="cc_test_openai">
+						<button class="button">Test koneksi OpenAI</button>
+					</form>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline-block">
+						<?php wp_nonce_field( 'cc_test_concat' ); ?>
+						<input type="hidden" name="action" value="cc_test_concat">
+						<button class="button">Test koneksi Studio Inspirasi</button>
+					</form>
+				</td>
+			</tr>
+		</table>
+	</div>
+	<?php
+}
