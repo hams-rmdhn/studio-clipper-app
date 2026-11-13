@@ -229,3 +229,16 @@ sidecar + SQLite), sesuai plan `plan-21533fdb19f7236f.md`. Nama produk
   GitHub warning ffmpeg >50 MB — diterima, tanpa LFS.
 - Release: https://github.com/hams-rmdhn/studio-clipper-app/releases/tag/v0.1.0
   dengan asset `Studio Clipper_0.1.0_x64.dmg` (77 MB).
+
+## Update: GitHub Pages landing (2026-11-13 pagi)
+
+- `docs/` → landing page satu halaman (Bahasa Indonesia): hero, tagline,
+  tombol download (releases/latest), screenshot app, grid 6 fitur,
+  diagram stack (Tauri/PHP/SQLite/ffmpeg), langkah instalasi +
+  catatan unsigned & x86_64-only.
+- Aset: `docs/screenshot.png` (2560×1600, dari
+  `~/Documents/Screenshots/Studio Clipper.png`), `docs/icon.png`
+  (app-icon.png).
+- Pages aktif via API: source `main`/`docs` →
+  https://hams-rmdhn.github.io/studio-clipper-app/ (index/screenshot/icon
+  200). Homepage repo kini menunjuk ke situs; README juga menautkannya.
