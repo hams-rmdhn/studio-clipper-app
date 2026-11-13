@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Studio Clipper — Kontrol Studio Inspirasi dari satu app</title>
-<meta name="description" content="Aplikasi desktop macOS untuk mengendalikan Studio Inspirasi — port standalone theme WordPress studio-inspirasi-chat. Tauri + PHP static + SQLite, tanpa WordPress.">
+<title>Studio Clipper — Dashboard produksi video untuk Studio Inspirasi</title>
+<meta name="description" content="Aplikasi desktop macOS untuk mengendalikan Studio Inspirasi — pipeline template, multi-segmen, AI Moments, library B-Roll & SFX. Offline, privat, satu .app.">
 <style>
 :root {
 	--em: #059669;
@@ -156,11 +156,11 @@ footer .sp { flex: 1; }
 
 <header class="hero">
 	<img class="logo" src="icon.png" alt="Logo Studio Clipper">
-	<div><span class="tag">macOS · v0.1.0</span></div>
-	<h1>Kontrol penuh <span>Studio Inspirasi</span><br>tanpa WordPress.</h1>
+	<div><span class="tag">macOS · v0.1.1</span></div>
+	<h1>Kontrol penuh <span>Studio Inspirasi</span><br>dari satu dashboard.</h1>
 	<p class="sub">
-		Studio Clipper adalah port standalone dari theme <code>studio-inspirasi-chat</code> —
-		dashboard produksi video lengkap dengan PHP + SQLite di dalam satu aplikasi macOS.
+		Studio Clipper merangkum seluruh workflow produksi video — dari template hingga
+		ekspor — dalam satu aplikasi macOS yang ringan, offline, dan privat.
 	</p>
 	<div class="cta">
 		<a class="btn btn-main" href="https://github.com/hams-rmdhn/studio-clipper-app/releases/latest">⬇&ensp;Download DMG</a>
@@ -177,8 +177,8 @@ footer .sp { flex: 1; }
 
 <section>
 	<div class="wrap">
-		<h2>Semua fitur dashboard, tetap utuh</h2>
-		<p class="lead">Seluruh logika pipeline dari theme asli dipertahankan — yang hilang cuma ketergantungan ke WordPress &amp; MySQL.</p>
+		<h2>Satu app, seluruh workflow</h2>
+		<p class="lead">Dari ide sampai proyek jadi — tanpa browser, tanpa server, tanpa setup rumit.</p>
 		<div class="grid">
 			<div class="card"><div class="ic">🎬</div><h3>Pipeline deterministik</h3>
 				<p>Wizard 4 langkah: template → ganti video → trim segmen → caption → serah ke Studio Inspirasi atau ekspor langsung via API.</p></div>
@@ -198,12 +198,29 @@ footer .sp { flex: 1; }
 
 <section>
 	<div class="wrap">
+		<h2>Buat apa saja dengan Studio Clipper?</h2>
+		<p class="lead">Didesain untuk produksi video yang repetitif — pola yang sama, hasil yang konsisten, berkali-kali.</p>
+		<div class="grid">
+			<div class="card"><div class="ic">🎙️</div><h3>Klip dakwah, kajian &amp; podcast</h3>
+				<p>Potong rekaman panjang jadi klip pendek per segmen — satu run menghasilkan puluhan proyek siap posting dengan caption rapi.</p></div>
+			<div class="card"><div class="ic">🔁</div><h3>Repurposing konten YouTube</h3>
+				<p>Punya arsip video di YouTube? Tempel link, biarkan AI memilih momen terbaik dari transkrip, langsung jadi proyek baru.</p></div>
+			<div class="card"><div class="ic">📦</div><h3>Produksi batch dari template</h3>
+				<p>Bangun template sekali — layout, style caption, struktur — lalu hasilkan banyak video konsisten cukup dengan ganti footage.</p></div>
+			<div class="card"><div class="ic">🎞️</div><h3>Kurasi aset B-Roll &amp; SFX</h3>
+				<p>Kelola koleksi footage pendukung dan efek suara dalam satu library — preview instan tanpa buka folder.</p></div>
+		</div>
+	</div>
+</section>
+
+<section>
+	<div class="wrap">
 		<h2>Di dalam .app</h2>
 		<p class="lead">Satu bundle self-contained — runtime-nya ikut, bukan bergantung pada sistem.</p>
 		<div class="stack">
 			<div class="s"><b>Tauri (Rust)</b><span>Window WKWebView 1280×800, spawn &amp; monitor sidecar, kill saat quit</span></div>
 			<div class="s"><b>PHP 8.3.36 static</b><span>17 MB, hanya link libSystem — <code>php -S</code> sidecar + worker daemon</span></div>
-			<div class="s"><b>SQLite</b><span>Shim WP-API: <code>$wpdb</code>→PDO, options/transients, REST registry</span></div>
+			<div class="s"><b>SQLite</b><span>Proyek, settings, dan antrian job tersimpan lokal di satu database ringan</span></div>
 			<div class="s"><b>ffmpeg &amp; yt-dlp</b><span>Binary statis ter-bundled — pipeline video &amp; unduhan YouTube</span></div>
 		</div>
 		<div class="pipe">
@@ -221,7 +238,7 @@ footer .sp { flex: 1; }
 		<h2>Instalasi</h2>
 		<p class="lead">Dua menit dari DMG ke produksi.</p>
 		<div class="steps">
-			<div class="step"><p><b>Download</b> <code>Studio Clipper_0.1.0_x64.dmg</code> dari halaman Releases, lalu drag app ke folder Applications.</p></div>
+			<div class="step"><p><b>Download</b> <code>Studio Clipper_0.1.1_x64.dmg</code> dari halaman Releases, lalu drag app ke folder Applications.</p></div>
 			<div class="step"><p><b>Bypass Gatekeeper</b> — app belum signed: klik kanan app → <b>Open</b> → Open anyway, atau jalankan <code>xattr -dr com.apple.quarantine "/Applications/Studio Clipper.app"</code>.</p></div>
 			<div class="step"><p><b>Aktifkan Automation</b> di Studio Inspirasi → Settings › Automation → <em>Scripts and apps</em> — token <code>automation.json</code> terbaca otomatis.</p></div>
 			<div class="step"><p><b>Isi API key</b> OpenAI / OpenRouter di Settings › Agen AI, lalu jalankan pipeline pertama dari Create New.</p></div>
