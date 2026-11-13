@@ -219,3 +219,13 @@ sidecar + SQLite), sesuai plan `plan-21533fdb19f7236f.md`. Nama produk
     diubah — kecil dan tidak menunjukkan gejala.
 - Verifikasi snapshot WKWebView: audio ter-center dalam sel.
 - Rebuild dmg 76.96 MB.
+
+## Update: repo publik + release v0.1.0 (2026-11-12 malam)
+
+- `git init` + initial commit (102 file — termasuk binari sidecar/php,
+  app/bin/ffmpeg 90 MB, yt-dlp 36 MB; build cache tools/ di-gitignore).
+- Repo publik: https://github.com/hams-rmdhn/studio-clipper-app
+- Push butuh `http.postBuffer=524288000` (payload ~150 MB → HTTP 408).
+  GitHub warning ffmpeg >50 MB — diterima, tanpa LFS.
+- Release: https://github.com/hams-rmdhn/studio-clipper-app/releases/tag/v0.1.0
+  dengan asset `Studio Clipper_0.1.0_x64.dmg` (77 MB).

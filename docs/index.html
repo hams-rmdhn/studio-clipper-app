@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio Clipper — Kontrol Studio Inspirasi dari satu app</title>
+<meta name="description" content="Aplikasi desktop macOS untuk mengendalikan Studio Inspirasi — port standalone theme WordPress studio-inspirasi-chat. Tauri + PHP static + SQLite, tanpa WordPress.">
+<style>
+:root {
+	--em: #059669;
+	--em-2: #10b981;
+	--em-3: #34d399;
+	--bg: #0c1220;
+	--bg-2: #101a2e;
+	--card: #131f38;
+	--line: rgba(148, 163, 184, .14);
+	--txt: #e6ecf5;
+	--mut: #93a4bd;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+	background: var(--bg); color: var(--txt);
+	-webkit-font-smoothing: antialiased; line-height: 1.6;
+}
+a { color: var(--em-3); text-decoration: none; }
+.wrap { max-width: 1020px; margin: 0 auto; padding: 0 24px; }
+
+/* ---------- nav ---------- */
+nav {
+	position: sticky; top: 0; z-index: 10;
+	backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+	background: rgba(12, 18, 32, .72); border-bottom: 1px solid var(--line);
+}
+nav .wrap { display: flex; align-items: center; gap: 12px; height: 58px; }
+nav img { width: 26px; height: 26px; }
+nav b { font-size: 15px; letter-spacing: .2px; }
+nav .sp { flex: 1; }
+nav a.btn-ghost {
+	font-size: 13px; font-weight: 600; color: var(--txt);
+	padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px;
+}
+nav a.btn-ghost:hover { border-color: var(--em); color: var(--em-3); }
+
+/* ---------- hero ---------- */
+.hero { text-align: center; padding: 84px 24px 40px; position: relative; }
+.hero::before {
+	content: ""; position: absolute; inset: -60px 0 0;
+	background: radial-gradient(ellipse 60% 46% at 50% 0%, rgba(16, 185, 129, .18), transparent 70%);
+	pointer-events: none;
+}
+.hero img.logo { width: 88px; height: 88px; margin-bottom: 22px; filter: drop-shadow(0 8px 30px rgba(5, 150, 105, .4)); }
+.tag {
+	display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+	color: var(--em-3); background: rgba(16, 185, 129, .12);
+	border: 1px solid rgba(16, 185, 129, .3); border-radius: 999px;
+	padding: 4px 14px; margin-bottom: 18px;
+}
+h1 { font-size: clamp(34px, 6vw, 56px); font-weight: 800; letter-spacing: -.02em; line-height: 1.08; }
+h1 span { color: var(--em-2); }
+.hero p.sub { max-width: 640px; margin: 18px auto 0; font-size: 17px; color: var(--mut); }
+.cta { display: flex; gap: 12px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+.btn {
+	display: inline-flex; align-items: center; gap: 8px;
+	font-size: 15px; font-weight: 700; border-radius: 10px; padding: 12px 24px;
+}
+.btn-main { background: var(--em); color: #fff; box-shadow: 0 6px 24px rgba(5, 150, 105, .35); }
+.btn-main:hover { background: var(--em-2); }
+.btn-out { border: 1px solid var(--line); color: var(--txt); }
+.btn-out:hover { border-color: var(--em-3); color: var(--em-3); }
+.hero .mini { margin-top: 14px; font-size: 12.5px; color: var(--mut); }
+
+/* ---------- screenshot ---------- */
+.shot { padding: 20px 0 70px; }
+.shot .frame {
+	border-radius: 16px; overflow: hidden; border: 1px solid var(--line);
+	box-shadow: 0 30px 80px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .03) inset;
+}
+.shot img { display: block; width: 100%; height: auto; }
+
+/* ---------- sections ---------- */
+section { padding: 60px 0; border-top: 1px solid var(--line); }
+h2 { font-size: 26px; font-weight: 800; letter-spacing: -.01em; margin-bottom: 8px; }
+.lead { color: var(--mut); font-size: 15px; margin-bottom: 34px; max-width: 640px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.card {
+	background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+	padding: 22px; transition: border-color .15s;
+}
+.card:hover { border-color: rgba(16, 185, 129, .45); }
+.card .ic {
+	width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+	background: rgba(5, 150, 105, .14); color: var(--em-3); font-size: 17px; margin-bottom: 14px;
+}
+.card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.card p { font-size: 13.5px; color: var(--mut); }
+
+/* ---------- stack ---------- */
+.stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.stack .s {
+	background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; padding: 18px;
+}
+.stack .s b { display: block; font-size: 13px; margin-bottom: 3px; }
+.stack .s span { font-size: 12.5px; color: var(--mut); }
+.pipe {
+	display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+	margin-top: 26px; font-size: 13px; color: var(--mut);
+}
+.pipe .n {
+	background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+	padding: 8px 13px; font-weight: 600; color: var(--txt); font-size: 12.5px;
+}
+.pipe .arrow { color: var(--em-3); font-weight: 700; }
+
+/* ---------- install ---------- */
+.steps { counter-reset: st; display: grid; gap: 12px; max-width: 720px; }
+.step {
+	display: flex; gap: 14px; align-items: flex-start;
+	background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+}
+.step::before {
+	counter-increment: st; content: counter(st);
+	flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+	background: var(--em); color: #fff; font-size: 13px; font-weight: 800;
+	display: flex; align-items: center; justify-content: center;
+}
+.step p { font-size: 14px; color: var(--txt); }
+.step code, p code, li code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .86em;
+	background: rgba(148, 163, 184, .13); border-radius: 5px; padding: 1px 6px;
+}
+.note {
+	margin-top: 18px; font-size: 13px; color: var(--mut);
+	border-left: 3px solid var(--em); padding: 8px 14px;
+	background: rgba(5, 150, 105, .07); border-radius: 0 8px 8px 0; max-width: 720px;
+}
+
+/* ---------- footer ---------- */
+footer { border-top: 1px solid var(--line); padding: 34px 0 50px; font-size: 13px; color: var(--mut); }
+footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+footer .sp { flex: 1; }
+</style>
+</head>
+<body>
+
+<nav>
+	<div class="wrap">
+		<img src="icon.png" alt="Studio Clipper">
+		<b>Studio Clipper</b>
+		<span class="sp"></span>
+		<a class="btn-ghost" href="https://github.com/hams-rmdhn/studio-clipper-app">GitHub</a>
+	</div>
+</nav>
+
+<header class="hero">
+	<img class="logo" src="icon.png" alt="Logo Studio Clipper">
+	<div><span class="tag">macOS · v0.1.0</span></div>
+	<h1>Kontrol penuh <span>Studio Inspirasi</span><br>tanpa WordPress.</h1>
+	<p class="sub">
+		Studio Clipper adalah port standalone dari theme <code>studio-inspirasi-chat</code> —
+		dashboard produksi video lengkap dengan PHP + SQLite di dalam satu aplikasi macOS.
+	</p>
+	<div class="cta">
+		<a class="btn btn-main" href="https://github.com/hams-rmdhn/studio-clipper-app/releases/latest">⬇&ensp;Download DMG</a>
+		<a class="btn btn-out" href="https://github.com/hams-rmdhn/studio-clipper-app">Lihat kode sumber</a>
+	</div>
+	<p class="mini">macOS · Intel x86_64 · ~77 MB · GPL-3.0</p>
+</header>
+
+<div class="wrap">
+	<div class="shot"><div class="frame">
+		<img src="screenshot.png" alt="Tampilan Studio Clipper — wizard Create New" width="2560" height="1600" loading="lazy">
+	</div></div>
+</div>
+
+<section>
+	<div class="wrap">
+		<h2>Semua fitur dashboard, tetap utuh</h2>
+		<p class="lead">Seluruh logika pipeline dari theme asli dipertahankan — yang hilang cuma ketergantungan ke WordPress &amp; MySQL.</p>
+		<div class="grid">
+			<div class="card"><div class="ic">🎬</div><h3>Pipeline deterministik</h3>
+				<p>Wizard 4 langkah: template → ganti video → trim segmen → caption → serah ke Studio Inspirasi atau ekspor langsung via API.</p></div>
+			<div class="card"><div class="ic">✂️</div><h3>Multi-segmen &amp; AI Moments</h3>
+				<p>Satu run menghasilkan banyak proyek <code>-001</code>, <code>-002</code>, … atau biarkan AI memilih momen terbaik dari transkrip.</p></div>
+			<div class="card"><div class="ic">▶️</div><h3>Sumber YouTube</h3>
+				<p>Tempel link YouTube — video + caption otomatis diunduh via yt-dlp ter-bundled, VTT dikonversi ke SRT.</p></div>
+			<div class="card"><div class="ic">🗂️</div><h3>Library B-Roll &amp; SFX</h3>
+				<p>Jelajah koleksi media dengan thumbnail, preview video, dan audio player inline.</p></div>
+			<div class="card"><div class="ic">📊</div><h3>Panel Processes</h3>
+				<p>Pantau langkah pipeline real-time — task cards per proses, batalkan kapan saja.</p></div>
+			<div class="card"><div class="ic">🔐</div><h3>Offline &amp; privat</h3>
+				<p>Semua data lokal: SQLite di <code>~/Library/Application Support/studio-clipper/</code>. API key tersimpan terenkripsi AES-256.</p></div>
+		</div>
+	</div>
+</section>
+
+<section>
+	<div class="wrap">
+		<h2>Di dalam .app</h2>
+		<p class="lead">Satu bundle self-contained — runtime-nya ikut, bukan bergantung pada sistem.</p>
+		<div class="stack">
+			<div class="s"><b>Tauri (Rust)</b><span>Window WKWebView 1280×800, spawn &amp; monitor sidecar, kill saat quit</span></div>
+			<div class="s"><b>PHP 8.3.36 static</b><span>17 MB, hanya link libSystem — <code>php -S</code> sidecar + worker daemon</span></div>
+			<div class="s"><b>SQLite</b><span>Shim WP-API: <code>$wpdb</code>→PDO, options/transients, REST registry</span></div>
+			<div class="s"><b>ffmpeg &amp; yt-dlp</b><span>Binary statis ter-bundled — pipeline video &amp; unduhan YouTube</span></div>
+		</div>
+		<div class="pipe">
+			<span class="n">WKWebView UI (Alpine.js)</span><span class="arrow">→</span>
+			<span class="n">php -S :port</span><span class="arrow">→</span>
+			<span class="n">REST + SQLite</span><span class="arrow">→</span>
+			<span class="n">worker.php</span><span class="arrow">→</span>
+			<span class="n">JSON-RPC Studio Inspirasi</span>
+		</div>
+	</div>
+</section>
+
+<section>
+	<div class="wrap">
+		<h2>Instalasi</h2>
+		<p class="lead">Dua menit dari DMG ke produksi.</p>
+		<div class="steps">
+			<div class="step"><p><b>Download</b> <code>Studio Clipper_0.1.0_x64.dmg</code> dari halaman Releases, lalu drag app ke folder Applications.</p></div>
+			<div class="step"><p><b>Bypass Gatekeeper</b> — app belum signed: klik kanan app → <b>Open</b> → Open anyway, atau jalankan <code>xattr -dr com.apple.quarantine "/Applications/Studio Clipper.app"</code>.</p></div>
+			<div class="step"><p><b>Aktifkan Automation</b> di Studio Inspirasi → Settings › Automation → <em>Scripts and apps</em> — token <code>automation.json</code> terbaca otomatis.</p></div>
+			<div class="step"><p><b>Isi API key</b> OpenAI / OpenRouter di Settings › Agen AI, lalu jalankan pipeline pertama dari Create New.</p></div>
+		</div>
+		<p class="note">Build saat ini <b>Intel x86_64</b> saja — ffmpeg/yt-dlp/PHP ter-bundled belum universal. Apple Silicon lewat Rosetta belum diuji.</p>
+	</div>
+</section>
+
+<footer>
+	<div class="wrap">
+		<img src="icon.png" width="20" height="20" alt="">
+		<span><b>Studio Clipper</b> · GPL-3.0 © 2026 Studio Inspirasi</span>
+		<span class="sp"></span>
+		<a href="https://github.com/hams-rmdhn/studio-clipper-app">Repository</a>
+		<span>·</span>
+		<a href="https://github.com/hams-rmdhn/studio-clipper-app/releases/latest">Releases</a>
+	</div>
+</footer>
+
+</body>
+</html>

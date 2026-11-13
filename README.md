@@ -4,6 +4,7 @@ Aplikasi desktop macOS untuk mengendalikan **Studio Inspirasi** (video editor
 desktop) — port standalone dari theme WordPress `studio-inspirasi-chat`.
 Tanpa WordPress, tanpa server web: satu `.app` dengan PHP + SQLite di dalamnya.
 
+**Landing page:** https://hams-rmdhn.github.io/studio-clipper-app/
 [Download `Studio Clipper_0.1.0_x64.dmg`](https://github.com/hams-rmdhn/studio-clipper-app/releases/latest)
 
 ## Yang berubah vs theme asli
